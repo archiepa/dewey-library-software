@@ -3,169 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Library System - Firebase</title>
-    
+    <title>Library - Catalog</title>
     <style>
-        body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 600px;
-            margin: 40px auto;
-            padding: 0 20px;
-            background-color: #f9f9f9;
-            color: #333;
-        }
-        h1, h2 {
-            color: #111;
-        }
-        form {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            margin-bottom: 30px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 8px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            background-color: #039be5; /* Firebase Blue */
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        button:hover {
-            background-color: #0288d1;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        li {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .status {
-            font-size: 0.85em;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-weight: bold;
-        }
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #f9f9f9; }
+        nav { margin-bottom: 20px; display: flex; gap: 15px; }
+        nav a { text-decoration: none; color: #039be5; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .status { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.8em; font-weight: bold; margin-top: 10px; }
         .available { background: #e6f4ea; color: #137333; }
+        .checked-out { background: #fce8e6; color: #c5221f; }
     </style>
 </head>
 <body>
 
-    <h1>Library Catalog (Firebase)</h1>
+    <nav>
+        <a href="index.html">Catalog</a>
+        <a href="issue.html">Issue/Return</a>
+        <a href="admin.html">Admin Panel</a>
+    </nav>
 
-    <!-- Form to Add Data -->
-    <h2>Add New Book</h2>
-    <form id="book-form">
-        <div class="form-group">
-            <label for="title">Book Title</label>
-            <input type="text" id="title" required placeholder="e.g., The Hobbit">
-        </div>
-        <div class="form-group">
-            <label for="author">Author</label>
-            <input type="text" id="author" required placeholder="e.g., J.R.R. Tolkien">
-        </div>
-        <button type="submit">Add to Firebase</button>
-    </form>
+    <h1>Library Catalog</h1>
+    <div id="catalog-grid" class="grid">Loading books...</div>
 
-    <!-- Container to Display Data -->
-    <h2>Current Inventory</h2>
-    <ul id="book-list">Connecting to Firebase...</ul>
-
-    <!-- Import Firebase App and Realtime Database modules using ES Modules -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // 1. CONFIGURATION: Replace this object with your actual keys from the Firebase Console
-        const firebaseConfig = {
-            apiKey: "AIzaSyBZtXCJO3rY0tfNhyEUQULJBmKSL7wR8Js",
-            authDomain: "dewey-library-system.firebaseapp.com",
-            databaseURL: "https://dewey-library-system-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "dewey-library-system",
-            storageBucket: "dewey-library-system.firebasestorage.app",
-            messagingSenderId: "151221940045",
-            appId: "1:151221940045:web:d3b5441c76e951ec7a1104"
-        };
+        // CONFIGURATION (Paste your actual Firebase config here)
+const firebaseConfig = {
+  apiKey: "AIzaSyBZtXCJO3rY0tfNhyEUQULJBmKSL7wR8Js",
+  authDomain: "dewey-library-system.firebaseapp.com",
+  databaseURL: "https://dewey-library-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "dewey-library-system",
+  storageBucket: "dewey-library-system.firebasestorage.app",
+  messagingSenderId: "151221940045",
+  appId: "1:151221940045:web:d3b5441c76e951ec7a1104",
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        
-        // Reference to our "books" node in the database tree
-        const booksRef = ref(db, 'books');
+        const grid = document.getElementById('catalog-grid');
 
-        const bookList = document.getElementById('book-list');
-        const bookForm = document.getElementById('book-form');
-
-        // 2. LISTEN & LOAD DATA (Realtime sync!)
-        onValue(booksRef, (snapshot) => {
-            bookList.innerHTML = ''; // Clear previous items
-            
+        onValue(ref(db, 'books'), (snapshot) => {
+            grid.innerHTML = '';
             const data = snapshot.val();
-            
-            if (!data) {
-                bookList.innerHTML = '<li>No books found in the database. Add one above!</li>';
-                return;
-            }
+            if (!data) { grid.innerHTML = '<p>No books available.</p>'; return; }
 
-            // Loop through Firebase object keys
             Object.keys(data).forEach(key => {
                 const book = data[key];
-                const li = document.createElement('li');
-                
-                li.innerHTML = `
-                    <div>
-                        <strong>${book.title}</strong><br>
-                        <span style="color: #666;">by ${book.author}</span>
-                    </div>
-                    <span class="status available">Available</span>
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <h3>${book.title}</h3>
+                    <p>By ${book.author}</p>
+                    <small>ISBN: ${book.isbn || 'N/A'}</small><br>
+                    <span class="status ${book.is_available ? 'available' : 'checked-out'}">
+                        ${book.is_available ? 'Available' : 'Checked Out'}
+                    </span>
                 `;
-                bookList.appendChild(li);
-            });
-        });
-
-        // 3. WRITE DATA: Add a book on form submit
-        bookForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-
-            const title = document.getElementById('title').value;
-            const author = document.getElementById('author').value;
-
-            // Push details up into the 'books' node
-            push(booksRef, {
-                title: title,
-                author: author,
-                is_available: true
-            }).then(() => {
-                bookForm.reset();
-            }).catch((err) => {
-                alert("Error writing to database. Check security rules!");
-                console.error(err);
+                grid.appendChild(card);
             });
         });
     </script>
