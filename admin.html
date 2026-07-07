@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dewey - Admin Panel</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; background: #f9f9f9; }
+        nav { margin-bottom: 20px; display: flex; gap: 15px; }
+        nav a { text-decoration: none; color: #039be5; font-weight: bold; }
+        form, .inventory-item { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        input, button { padding: 8px; margin: 5px 0; display: block; width: 100%; box-sizing: border-box; }
+        button.add { background: #039be5; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button.delete { background: #c5221f; color: white; border: none; width: auto; display: inline-block; cursor: pointer; padding: 5px 10px; border-radius: 4px; }
+        .inventory-item { display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="index.html">Catalog</a>
+        <a href="issue.html">Issue/Return</a>
+        <a href="admin.html">Admin Panel</a>
+    </nav>
+
+    <h1>Dewey Control Panel</h1>
+
+    <h2>Add New Asset</h2>
+    <form id="add-form">
+        <input type="text" id="title" placeholder="Book Title" required>
+        <input type="text" id="author" placeholder="Author" required>
+        <input type="text" id="isbn" placeholder="ISBN Number" required>
+        <button type="submit" class="add">Add Asset to System</button>
+    </form>
+
+    <h2>System Inventory</h2>
+    <div id="admin-inventory">Loading list...</div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBZtXCJO3rY0tfNhyEUQULJBmKSL7wR8Js",
+            authDomain: "dewey-library-system.firebaseapp.com",
+            databaseURL: "https://dewey-library-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "dewey-library-system",
+            storageBucket: "dewey-library-system.firebasestorage.app",
+            messagingSenderId: "151221940045",
+            appId: "1:151221940045:web:d3b5441c76e951ec7a1104"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        
+        const inventoryDiv = document.getElementById('admin-inventory');
+
+        document.getElementById('add-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await push(ref(db, 'books'), {
+                title: document.getElementById('title').value,
+                author: document.getElementById('author').value,
+                isbn: document.getElementById('isbn').value,
+                is_available: true,
+                borrower: null
+            });
+            document.getElementById('add-form').reset();
+        });
+
+        onValue(ref(db, 'books'), (snapshot) => {
+            inventoryDiv.innerHTML = '';
+            const data = snapshot.val();
+            if(!data) { inventoryDiv.innerHTML = '<p>No inventory items registered yet.</p>'; return; }
+
+            Object.keys(data).forEach(key => {
+                const book = data[key];
+                const item = document.createElement('div');
+                item.className = 'inventory-item';
+                item.innerHTML = `
+                    <div>
+                        <strong>${book.title}</strong> (ISBN: ${book.isbn})<br>
+                        <small>Status: ${book.is_available ? 'In Library' : `Loaned to: ${book.borrower}`}</small>
+                    </div>
+                    <button class="delete" data-id="${key}">Remove</button>
+                `;
+                inventoryDiv.appendChild(item);
+            });
+
+            document.querySelectorAll('.delete').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    if(confirm("Permanently remove this book from registry?")) {
+                        await remove(ref(db, `books/${id}`));
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
