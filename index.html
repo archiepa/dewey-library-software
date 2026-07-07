@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Library System</title>
-    <!-- Load the official Supabase Client Library -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Library System - Firebase</title>
     
     <style>
         body {
@@ -42,7 +40,7 @@
             border-radius: 4px;
         }
         button {
-            background-color: #24292e;
+            background-color: #039be5; /* Firebase Blue */
             color: white;
             padding: 10px 15px;
             border: none;
@@ -51,7 +49,7 @@
             font-weight: 600;
         }
         button:hover {
-            background-color: #444;
+            background-color: #0288d1;
         }
         ul {
             list-style: none;
@@ -74,14 +72,13 @@
             font-weight: bold;
         }
         .available { background: #e6f4ea; color: #137333; }
-        .checked-out { background: #fce8e6; color: #c5221f; }
     </style>
 </head>
 <body>
 
-    <h1>Library Catalog</h1>
+    <h1>Library Catalog (Firebase)</h1>
 
-    <!-- Form to Insert Data into PostgreSQL -->
+    <!-- Form to Add Data -->
     <h2>Add New Book</h2>
     <form id="book-form">
         <div class="form-group">
@@ -92,89 +89,85 @@
             <label for="author">Author</label>
             <input type="text" id="author" required placeholder="e.g., J.R.R. Tolkien">
         </div>
-        <button type="submit">Add to Database</button>
+        <button type="submit">Add to Firebase</button>
     </form>
 
-    <!-- Container to Display Data from PostgreSQL -->
+    <!-- Container to Display Data -->
     <h2>Current Inventory</h2>
-    <ul id="book-list">Loading inventory...</ul>
+    <ul id="book-list">Connecting to Firebase...</ul>
 
-    <script>
-        // 1. CONFIGURATION: Replace these values from your Supabase Dashboard (Settings -> API)
-        const SUPABASE_URL = 'https://ltxoufcssexslapibygd.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_De3H-KjvpBCSf98rQV5smg_W76Kjx7R';
+    <!-- Import Firebase App and Realtime Database modules using ES Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Initialize Supabase Client
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 1. CONFIGURATION: Replace this object with your actual keys from the Firebase Console
+        const firebaseConfig = {
+            apiKey: "AIzaSyBZtXCJO3rY0tfNhyEUQULJBmKSL7wR8Js",
+            authDomain: "dewey-library-system.firebaseapp.com",
+            databaseURL: "https://dewey-library-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "dewey-library-system",
+            storageBucket: "dewey-library-system.firebasestorage.app",
+            messagingSenderId: "151221940045",
+            appId: "1:151221940045:web:d3b5441c76e951ec7a1104"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        
+        // Reference to our "books" node in the database tree
+        const booksRef = ref(db, 'books');
 
         const bookList = document.getElementById('book-list');
         const bookForm = document.getElementById('book-form');
 
-        // 2. FETCH DATA: Get books from Postgres and display them
-        async function fetchBooks() {
-            bookList.innerHTML = 'Loading inventory...';
+        // 2. LISTEN & LOAD DATA (Realtime sync!)
+        onValue(booksRef, (snapshot) => {
+            bookList.innerHTML = ''; // Clear previous items
             
-            const { data, error } = await supabase
-                .from('books')
-                .select('*')
-                .order('title', { ascending: true });
-
-            if (error) {
-                console.error('Error loading books:', error);
-                bookList.innerHTML = `<li>Error loading library data. Check browser console.</li>`;
-                return;
-            }
-
-            if (data.length === 0) {
+            const data = snapshot.val();
+            
+            if (!data) {
                 bookList.innerHTML = '<li>No books found in the database. Add one above!</li>';
                 return;
             }
 
-            bookList.innerHTML = ''; // Clear loading text
-            
-            data.forEach(book => {
+            // Loop through Firebase object keys
+            Object.keys(data).forEach(key => {
+                const book = data[key];
                 const li = document.createElement('li');
                 
-                // Set status text and colors
-                const statusText = book.is_available ? 'Available' : 'Checked Out';
-                const statusClass = book.is_available ? 'available' : 'checked-out';
-
                 li.innerHTML = `
                     <div>
                         <strong>${book.title}</strong><br>
                         <span style="color: #666;">by ${book.author}</span>
                     </div>
-                    <span class="status ${statusClass}">${statusText}</span>
+                    <span class="status available">Available</span>
                 `;
                 bookList.appendChild(li);
             });
-        }
+        });
 
-        // 3. INSERT DATA: Send new book details to Postgres on form submit
-        bookForm.addEventListener('submit', async (e) => {
+        // 3. WRITE DATA: Add a book on form submit
+        bookForm.addEventListener('submit', (e) => {
             e.preventDefault();
 
             const title = document.getElementById('title').value;
             const author = document.getElementById('author').value;
 
-            const { error } = await supabase
-                .from('books')
-                .insert([
-                    { title: title, author: author, is_available: true }
-                ]);
-
-            if (error) {
-                alert('Failed to add book. Did you enable write access policies (RLS) for anonymous users? Check console.');
-                console.error('Insert error:', error);
-            } else {
-                // Clear the form fields and refresh list
+            // Push details up into the 'books' node
+            push(booksRef, {
+                title: title,
+                author: author,
+                is_available: true
+            }).then(() => {
                 bookForm.reset();
-                fetchBooks();
-            }
+            }).catch((err) => {
+                alert("Error writing to database. Check security rules!");
+                console.error(err);
+            });
         });
-
-        // Run fetch on initial page load
-        fetchBooks();
     </script>
 </body>
 </html>
