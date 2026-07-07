@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library - Issue/Return</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; background: #f9f9f9; }
+        nav { margin-bottom: 20px; display: flex; gap: 15px; }
+        nav a { text-decoration: none; color: #039be5; font-weight: bold; }
+        form { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        input, select, button { width: 100%; padding: 10px; margin: 8px 0; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; }
+        button { background: #039be5; color: white; font-weight: bold; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="index.html">Catalog</a>
+        <a href="issue.html">Issue/Return</a>
+        <a href="admin.html">Admin Panel</a>
+    </nav>
+
+    <h1>Issue or Return a Book</h1>
+
+    <form id="transaction-form">
+        <label>Select Book</label>
+        <select id="book-select"><option>Loading books...</option></select>
+
+        <label>Action</label>
+        <select id="action-select">
+            <option value="issue">Issue Book</option>
+            <option value="return">Return Book</option>
+        </select>
+
+        <div id="borrower-group">
+            <label>Borrower Name</label>
+            <input type="text" id="borrower-name" placeholder="John Doe">
+        </div>
+
+        <button type="submit">Submit Transaction</button>
+    </form>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // CONFIGURATION (Paste your actual Firebase config here)
+const firebaseConfig = {
+  apiKey: "AIzaSyBZtXCJO3rY0tfNhyEUQULJBmKSL7wR8Js",
+  authDomain: "dewey-library-system.firebaseapp.com",
+  databaseURL: "https://dewey-library-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "dewey-library-system",
+  storageBucket: "dewey-library-system.firebasestorage.app",
+  messagingSenderId: "151221940045",
+  appId: "1:151221940045:web:d3b5441c76e951ec7a1104",
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        
+        const bookSelect = document.getElementById('book-select');
+        const actionSelect = document.getElementById('action-select');
+        const borrowerGroup = document.getElementById('borrower-group');
+
+        // Toggle borrower input depending on context
+        actionSelect.addEventListener('change', () => {
+            borrowerGroup.style.display = actionSelect.value === 'return' ? 'none' : 'block';
+        });
+
+        // Populate dropdown menu dynamically
+        onValue(ref(db, 'books'), (snapshot) => {
+            bookSelect.innerHTML = '';
+            const data = snapshot.val();
+            if(!data) return;
+            Object.keys(data).forEach(key => {
+                const book = data[key];
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = `${book.title} (${book.is_available ? 'Available' : 'Out'})`;
+                bookSelect.appendChild(opt);
+            });
+        });
+
+        document.getElementById('transaction-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const bookId = bookSelect.value;
+            const action = actionSelect.value;
+            const borrower = document.getElementById('borrower-name').value;
+
+            if (!bookId) return;
+
+            const bookUpdate = {};
+            if (action === 'issue') {
+                bookUpdate[`books/${bookId}/is_available`] = false;
+                bookUpdate[`books/${bookId}/borrower`] = borrower || "Anonymous";
+            } else {
+                bookUpdate[`books/${bookId}/is_available`] = true;
+                bookUpdate[`books/${bookId}/borrower`] = null;
+            }
+
+            await update(ref(db), bookUpdate);
+            alert("Transaction complete!");
+        });
+    </script>
+</body>
+</html>
