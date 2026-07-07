@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GitHub Pages + Postgres</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Users List</h1>
+    <ul id="users"></ul>
+
+    <script>
+        // Initialize Supabase (Get these keys from your Supabase dashboard)
+        const SUPABASE_URL = 'https://your-project-id.supabase.co';
+        const SUPABASE_KEY = 'your-anon-public-key';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function fetchUsers() {
+            // Query your PostgreSQL 'users' table directly!
+            const { data, error } = await supabase
+                .from('users')
+                .select('*');
+
+            if (error) console.error(error);
+            
+            // Render to page
+            const list = document.getElementById('users');
+            data.forEach(user => {
+                const li = document.createElement('li');
+                li.textContent = user.name;
+                list.appendChild(li);
+            });
+        }
+
+        fetchUsers();
+    </script>
+</body>
+</html>
